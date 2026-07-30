@@ -1,0 +1,109 @@
+name: e2e global.json + check-latest
+
+on:
+  workflow_dispatch:
+
+
+jobs:
+  # 1) Default (check-latest: true) -> latest 8.0.x resolved online.
+  check-latest-true:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup .NET from global.json (check-latest true)
+        uses: mahabaleshwars/setup-dotnet@feature/762-check-latest
+        with:
+          global-json-file: global.json
+          check-latest: true
+
+      - name: Show resolved SDKs
+        shell: pwsh
+        run: |
+          dotnet --list-sdks
+          Write-Host "Active SDK: $(dotnet --version)"
+  # 2) Offline reuse (check-latest: false). Preinstall a pinned 8.0.x, then
+  #    request via global.json -> should REUSE it and skip the network.
+  check-latest-false-reuse:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Preinstall a specific 8.0.x SDK (online)
+        uses: mahabaleshwars/setup-dotnet@feature/762-check-latest
+        with:
+          dotnet-version: '8.0.404'
+
+      - name: Write global.json (8.0.100 + latestFeature)
+        shell: pwsh
+        run: |
+          @'
+          {
+            "sdk": {
+              "version": "8.0.100",
+              "rollForward": "latestFeature"
+            }
+          }
+          '@ | Set-Content -Path global.json -Encoding utf8
+      - name: Setup .NET from global.json (check-latest false)
+        uses: mahabaleshwars/setup-dotnet@feature/762-check-latest
+        with:
+          global-json-file: global.json
+          check-latest: false
+
+      - name: Verify the preinstalled SDK was reused
+        shell: pwsh
+        run: |
+          dotnet --list-sdks
+          $active = dotnet --version
+          Write-Host "Active SDK: $active"
+          if ($active -notmatch '^8\.0\.') {
+            Write-Error "Expected an 8.0.x SDK to be active, got '$active'."
+            exit 1
+          }
+  # 3) Online fallback (check-latest: false, no local match). Nothing matches
+  #    after clearing the toolcache -> should install online.
+  check-latest-false-fallback:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v7
+      
+      - name: Write global.json (9.0.100 + latestFeature -> floating 9.0)
+        shell: pwsh
+        run: |
+          @'
+          {
+            "sdk": {
+              "version": "9.0.100",
+              "rollForward": "latestFeature"
+            }
+          }
+          '@ | Set-Content -Path global.json -Encoding utf8
+      - name: Setup .NET from global.json (check-latest false, expect fallback)
+        uses: mahabaleshwars/setup-dotnet@feature/762-check-latest
+        with:
+          global-json-file: global.json
+          check-latest: false
+
+      - name: Show resolved SDKs
+        shell: pwsh
+        run: |
+          dotnet --list-sdks
+          $active = dotnet --version
+          Write-Host "Active SDK: $active"
+          if ($active -notmatch '^9\.0\.') {
+            Write-Error "Expected a 9.0.x SDK to be active, got '$active'."
+            exit 1
+          }
