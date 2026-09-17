@@ -1,27 +1,128 @@
-name: home-unset-diff
-on: [workflow_dispatch]
+name: testing-518
+
+on:
+  workflow_dispatch:
+    inputs:
+      dotnet-version:
+        description: '.NET version to install'
+        required: false
+        default: '8.0.x'
+  push:
+
+env:
+  DOTNET_VERSION: ${{ inputs.dotnet-version || '8.0.x' }}
 
 jobs:
-  home-unset:
+  pr-fallback-branch-linux:
     runs-on: ubuntu-latest
-    env:
-      DOTNET_INSTALL_DIR: /tmp/explicit-dotnet
     steps:
       - uses: actions/checkout@v7
 
-      - name: Unset HOME for the action step
+      - name: Replace /usr/share/dotnet with a dangling symlink
         run: |
-          echo "HOME=" >> $GITHUB_ENV
-          echo "USERPROFILE=" >> $GITHUB_ENV
-
-      - uses: v-mahabaleshwars/setup-dotnet@feature/518-fallback
-      # - uses: v-priyagupta108/setup-dotnet@install-dir-writable-fallback
-      
+          sudo rm -rf /usr/share/dotnet
+          sudo ln -s /nonexistent-target-for-symlink-test /usr/share/dotnet
+          # parent is made world-writable to prove the walk-up-to-parent branch is NOT taken
+          sudo chmod 777 /usr/share
+          ls -la /usr/share/dotnet
+      - name: Setup .NET (expect fallback to $HOME/.dotnet, not the writable parent)
+        id: setup-dotnet
+        uses: v-priyagupta108/setup-dotnet@install-dir-writable-fallback
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: ${{ env.DOTNET_VERSION }}
 
-      - name: Restore HOME and verify
+      - name: Verify fallback was used
+        if: always()
         run: |
-          echo "HOME=/home/runner" >> $GITHUB_ENV
-          test -x /tmp/explicit-dotnet/dotnet
-          /tmp/explicit-dotnet/dotnet --info
+          echo "DOTNET_ROOT=$DOTNET_ROOT"
+          if [ "$DOTNET_ROOT" != "$HOME/.dotnet" ]; then
+            echo "::error::expected fallback to $HOME/.dotnet but got '$DOTNET_ROOT'"
+            exit 1
+          fi
+          dotnet --info
+ 
+  pr-fallback-branch-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Replace C:\Program Files\dotnet with a dangling symlink
+        shell: pwsh
+        run: |
+          Remove-Item -Recurse -Force "C:\Program Files\dotnet" -ErrorAction SilentlyContinue
+          New-Item -ItemType SymbolicLink -Path "C:\Program Files\dotnet" -Target "C:\nonexistent-target-for-symlink-test" | Out-Null
+      - name: Setup .NET (expect fallback to %USERPROFILE%\.dotnet)
+        id: setup-dotnet
+        uses: v-priyagupta108/setup-dotnet@install-dir-writable-fallback
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Verify fallback was used
+        if: always()
+        shell: pwsh
+        run: |
+          Write-Host "DOTNET_ROOT=$env:DOTNET_ROOT"
+          $expected = Join-Path $env:USERPROFILE ".dotnet"
+          if ($env:DOTNET_ROOT -ne $expected) {
+            Write-Error "expected fallback to $expected but got '$env:DOTNET_ROOT'"
+            exit 1
+          }
+          dotnet --info
+
+
+    
+pr-fallback-branch-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Replace /usr/share/dotnet with a dangling symlink
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo ln -s /nonexistent-target-for-symlink-test /usr/share/dotnet
+          # parent is made world-writable to prove the walk-up-to-parent branch is NOT taken
+          sudo chmod 777 /usr/share
+          ls -la /usr/share/dotnet
+      - name: Setup .NET (expect fallback to $HOME/.dotnet, not the writable parent)
+        id: setup-dotnet
+        uses: v-mahabaleshwars/ setup-dotnet@feature/518-fallback
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Verify fallback was used
+        if: always()
+        run: |
+          echo "DOTNET_ROOT=$DOTNET_ROOT"
+          if [ "$DOTNET_ROOT" != "$HOME/.dotnet" ]; then
+            echo "::error::expected fallback to $HOME/.dotnet but got '$DOTNET_ROOT'"
+            exit 1
+          fi
+          dotnet --info
+
+  pr-fallback-branch-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Replace C:\Program Files\dotnet with a dangling symlink
+        shell: pwsh
+        run: |
+          Remove-Item -Recurse -Force "C:\Program Files\dotnet" -ErrorAction SilentlyContinue
+          New-Item -ItemType SymbolicLink -Path "C:\Program Files\dotnet" -Target "C:\nonexistent-target-for-symlink-test" | Out-Null
+      - name: Setup .NET (expect fallback to %USERPROFILE%\.dotnet)
+        id: setup-dotnet
+        uses: v-mahabaleshwars/ setup-dotnet@feature/518-fallback
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Verify fallback was used
+        if: always()
+        shell: pwsh
+        run: |
+          Write-Host "DOTNET_ROOT=$env:DOTNET_ROOT"
+          $expected = Join-Path $env:USERPROFILE ".dotnet"
+          if ($env:DOTNET_ROOT -ne $expected) {
+            Write-Error "expected fallback to $expected but got '$env:DOTNET_ROOT'"
+            exit 1
+          }
+          dotnet --info
