@@ -1,27 +1,27 @@
-name: fallback-single-scenario
-on: workflow_dispatch
+name: home-unset-diff
+on: [workflow_dispatch]
 
 jobs:
-  symlinked-default-not-writable:
+  home-unset:
     runs-on: ubuntu-latest
+    env:
+      DOTNET_INSTALL_DIR: /tmp/explicit-dotnet
     steps:
       - uses: actions/checkout@v7
 
-      - name: Replace default install dir with a symlink to a read-only target
+      - name: Unset HOME for the action step
         run: |
-          sudo rm -rf /usr/share/dotnet
-          sudo mkdir -p /opt/readonly-dotnet
-          sudo chmod a-w /opt/readonly-dotnet
-          sudo ln -s /opt/readonly-dotnet /usr/share/dotnet
-          ls -la /usr/share/dotnet
+          echo "HOME=" >> $GITHUB_ENV
+          echo "USERPROFILE=" >> $GITHUB_ENV
 
-      # - uses: v-priyagupta108/setup-dotnet@install-dir-writable-fallback
       - uses: v-mahabaleshwars/setup-dotnet@feature/518-fallback
-       
+      # - uses: v-priyagupta108/setup-dotnet@install-dir-writable-fallback
+      
         with:
           dotnet-version: '8.0.x'
 
-      - name: Verify fallback landed under $HOME/.dotnet
+      - name: Restore HOME and verify
         run: |
-          test -x "$HOME/.dotnet/dotnet" || { echo "no fallback"; exit 1; }
-          "$HOME/.dotnet/dotnet" --info
+          echo "HOME=/home/runner" >> $GITHUB_ENV
+          test -x /tmp/explicit-dotnet/dotnet
+          /tmp/explicit-dotnet/dotnet --info
