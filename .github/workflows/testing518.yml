@@ -1,162 +1,27 @@
-name: testing-518
-
-on:
-  workflow_dispatch:
-  pull_request:
+name: fallback-single-scenario
+on: workflow_dispatch
 
 jobs:
-  # ─────────────────────────────────────────────────────────────
-  # Baseline — actions/setup-dotnet main (no fallback logic yet)
-  # ─────────────────────────────────────────────────────────────
-  baseline-main-writable:
+  symlinked-default-not-writable:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-dotnet@v6
-        with:
-          dotnet-version: '8.0.x'
-      - run: dotnet --info
 
-  baseline-main-not-writable:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - name: Make default dir read-only
+      - name: Replace default install dir with a symlink to a read-only target
         run: |
-          sudo mkdir -p /usr/share/dotnet
-          sudo chmod a-w /usr/share/dotnet
-      - uses: actions/setup-dotnet@v6  # expected to FAIL
-        with:
-          dotnet-version: '8.0.x'
-      - run: dotnet --info
+          sudo rm -rf /usr/share/dotnet
+          sudo mkdir -p /opt/readonly-dotnet
+          sudo chmod a-w /opt/readonly-dotnet
+          sudo ln -s /opt/readonly-dotnet /usr/share/dotnet
+          ls -la /usr/share/dotnet
 
-  # ─────────────────────────────────────────────────────────────
-  # mahabaleshwars#4  →  feature/518-fallback
-  # ─────────────────────────────────────────────────────────────
-  maha-simple-fallback:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - name: Make default dir read-only
-        run: |
-          sudo mkdir -p /usr/share/dotnet
-          sudo chmod a-w /usr/share/dotnet
-      - uses: v-mahabaleshwars/setup-dotnet@feature/518-fallback
-        with:
-          dotnet-version: '8.0.x'
-      - run: dotnet --info
-
-  maha-explicit-dir-no-home:
-    runs-on: ubuntu-latest
-    env:
-      DOTNET_INSTALL_DIR: /tmp/explicit-dotnet
-    steps:
-      - uses: actions/checkout@v7
-      - name: Unset HOME
-        run: echo "HOME=" >> $GITHUB_ENV
-      - uses: v-mahabaleshwars/setup-dotnet@feature/518-fallback   # expected to FAIL
-        with:
-          dotnet-version: '8.0.x'
-      - name: Restore HOME and verify
-        run: |
-          echo "HOME=/home/runner" >> $GITHUB_ENV
-          /tmp/explicit-dotnet/dotnet --info
-
-  maha-parent-not-writable:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - name: Deny mkdir on default and $HOME
-        run: |
-          sudo mkdir -p /usr/share/dotnet
-          sudo chmod a-w /usr/share/dotnet
-          mkdir -p "$HOME/.dotnet"
-          chmod a-w "$HOME"
-      - uses: v-mahabaleshwars/setup-dotnet@feature/518-fallback   # expected to FAIL
-        with:
-          dotnet-version: '8.0.x'
-      - name: Restore and verify
-        if: always()
-        run: |
-          chmod u+w "$HOME"
-          dotnet --info
-
-  # ─────────────────────────────────────────────────────────────
-  # priyagupta108#5  →  install-dir-writable-fallback
-  # ─────────────────────────────────────────────────────────────
-  priya-simple-fallback:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - name: Make default dir read-only
-        run: |
-          sudo mkdir -p /usr/share/dotnet
-          sudo chmod a-w /usr/share/dotnet
       - uses: v-priyagupta108/setup-dotnet@install-dir-writable-fallback
+        # swap to v-mahabaleshwars/setup-dotnet@feature/518-fallback or
+        # actions/setup-dotnet@main to reproduce the failures
         with:
           dotnet-version: '8.0.x'
-      - run: dotnet --info
 
-  priya-explicit-dir-no-home:
-    runs-on: ubuntu-latest
-    env:
-      DOTNET_INSTALL_DIR: /tmp/explicit-dotnet
-    steps:
-      - uses: actions/checkout@v7
-      - name: Unset HOME
-        run: echo "HOME=" >> $GITHUB_ENV
-      - uses: v-priyagupta108/setup-dotnet@install-dir-writable-fallback
-        with:
-          dotnet-version: '8.0.x'
-      - name: Restore HOME and verify
+      - name: Verify fallback landed under $HOME/.dotnet
         run: |
-          echo "HOME=/home/runner" >> $GITHUB_ENV
-          /tmp/explicit-dotnet/dotnet --info
-
-  priya-parent-not-writable:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - name: Deny mkdir on default and $HOME
-        run: |
-          sudo mkdir -p /usr/share/dotnet
-          sudo chmod a-w /usr/share/dotnet
-          mkdir -p "$HOME/.dotnet"
-          chmod a-w "$HOME"
-      - uses: v-priyagupta108/setup-dotnet@install-dir-writable-fallback
-        with:
-          dotnet-version: '8.0.x'
-      - name: Restore and verify
-        if: always()
-        run: |
-          chmod u+w "$HOME"
-          dotnet --info
-
-  priya-windows-acl:
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v7
-      - name: Create ACL-restricted default path
-        shell: pwsh
-        run: |
-          $dir = 'C:\dotnet-probe-test'
-          New-Item -ItemType Directory -Path $dir -Force | Out-Null
-          $acl = Get-Acl $dir
-          $rule = New-Object System.Security.AccessControl.FileSystemAccessRule(
-            "$env:USERNAME",
-            'CreateDirectories,CreateFiles',
-            'ContainerInherit,ObjectInherit',
-            'None',
-            'Deny')
-          $acl.AddAccessRule($rule)
-          Set-Acl -Path $dir -AclObject $acl
-          "PROGRAMFILES=$dir" | Out-File -FilePath $env:GITHUB_ENV -Append
-      - uses: v-priyagupta108/setup-dotnet@install-dir-writable-fallback
-        with:
-          dotnet-version: '8.0.x'
-      - name: Verify fallback under %USERPROFILE%\.dotnet
-        shell: pwsh
-        run: |
-          $fallback = Join-Path $env:USERPROFILE '.dotnet\dotnet.exe'
-          if (-not (Test-Path $fallback)) { throw "Missing $fallback" }
-          & $fallback --info
+          test -x "$HOME/.dotnet/dotnet" || { echo "no fallback"; exit 1; }
+          "$HOME/.dotnet/dotnet" --info
