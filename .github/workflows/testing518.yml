@@ -15,9 +15,9 @@ jobs:
           sudo ln -s /opt/readonly-dotnet /usr/share/dotnet
           ls -la /usr/share/dotnet
 
-      - uses: v-priyagupta108/setup-dotnet@install-dir-writable-fallback
-        # swap to v-mahabaleshwars/setup-dotnet@feature/518-fallback or
-        # actions/setup-dotnet@main to reproduce the failures
+      # - uses: v-priyagupta108/setup-dotnet@install-dir-writable-fallback
+      - uses: v-mahabaleshwars/setup-dotnet@feature/518-fallback
+       
         with:
           dotnet-version: '8.0.x'
 
