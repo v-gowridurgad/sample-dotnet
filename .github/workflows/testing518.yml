@@ -13,7 +13,10 @@ env:
   DOTNET_VERSION: ${{ inputs.dotnet-version || '8.0.x' }}
 
 jobs:
-  pr-fallback-branch-linux:
+  # ─────────────────────────────────────────────────────────────
+  # v-priyagupta108 / install-dir-writable-fallback
+  # ─────────────────────────────────────────────────────────────
+  priya-linux:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -22,10 +25,11 @@ jobs:
         run: |
           sudo rm -rf /usr/share/dotnet
           sudo ln -s /nonexistent-target-for-symlink-test /usr/share/dotnet
-          # parent is made world-writable to prove the walk-up-to-parent branch is NOT taken
+          # parent made world-writable to prove the walk-up-to-parent branch is NOT taken
           sudo chmod 777 /usr/share
           ls -la /usr/share/dotnet
-      - name: Setup .NET (expect fallback to $HOME/.dotnet, not the writable parent)
+
+      - name: Setup .NET (expect fallback to $HOME/.dotnet)
         id: setup-dotnet
         uses: v-priyagupta108/setup-dotnet@install-dir-writable-fallback
         with:
@@ -40,8 +44,8 @@ jobs:
             exit 1
           fi
           dotnet --info
- 
-  pr-fallback-branch-windows:
+
+  priya-windows:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v7
@@ -51,6 +55,7 @@ jobs:
         run: |
           Remove-Item -Recurse -Force "C:\Program Files\dotnet" -ErrorAction SilentlyContinue
           New-Item -ItemType SymbolicLink -Path "C:\Program Files\dotnet" -Target "C:\nonexistent-target-for-symlink-test" | Out-Null
+
       - name: Setup .NET (expect fallback to %USERPROFILE%\.dotnet)
         id: setup-dotnet
         uses: v-priyagupta108/setup-dotnet@install-dir-writable-fallback
@@ -69,9 +74,10 @@ jobs:
           }
           dotnet --info
 
-
-    
-pr-fallback-branch-linux:
+  # ─────────────────────────────────────────────────────────────
+  # v-mahabaleshwars / feature/518-fallback
+  # ─────────────────────────────────────────────────────────────
+  maha-linux:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -80,12 +86,12 @@ pr-fallback-branch-linux:
         run: |
           sudo rm -rf /usr/share/dotnet
           sudo ln -s /nonexistent-target-for-symlink-test /usr/share/dotnet
-          # parent is made world-writable to prove the walk-up-to-parent branch is NOT taken
           sudo chmod 777 /usr/share
           ls -la /usr/share/dotnet
-      - name: Setup .NET (expect fallback to $HOME/.dotnet, not the writable parent)
+
+      - name: Setup .NET (expect fallback to $HOME/.dotnet)
         id: setup-dotnet
-        uses: v-mahabaleshwars/ setup-dotnet@feature/518-fallback
+        uses: v-mahabaleshwars/setup-dotnet@feature/518-fallback
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
@@ -99,7 +105,7 @@ pr-fallback-branch-linux:
           fi
           dotnet --info
 
-  pr-fallback-branch-windows:
+  maha-windows:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v7
@@ -109,9 +115,10 @@ pr-fallback-branch-linux:
         run: |
           Remove-Item -Recurse -Force "C:\Program Files\dotnet" -ErrorAction SilentlyContinue
           New-Item -ItemType SymbolicLink -Path "C:\Program Files\dotnet" -Target "C:\nonexistent-target-for-symlink-test" | Out-Null
+
       - name: Setup .NET (expect fallback to %USERPROFILE%\.dotnet)
         id: setup-dotnet
-        uses: v-mahabaleshwars/ setup-dotnet@feature/518-fallback
+        uses: v-mahabaleshwars/setup-dotnet@feature/518-fallback
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
