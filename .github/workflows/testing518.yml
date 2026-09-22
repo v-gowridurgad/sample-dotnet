@@ -1,135 +1,39 @@
 name: testing-518
-
-on:
-  workflow_dispatch:
-    inputs:
-      dotnet-version:
-        description: '.NET version to install'
-        required: false
-        default: '8.0.x'
-  push:
-
-env:
-  DOTNET_VERSION: ${{ inputs.dotnet-version || '8.0.x' }}
+on: workflow_dispatch
 
 jobs:
-  # ─────────────────────────────────────────────────────────────
-  # v-priyagupta108 / install-dir-writable-fallback
-  # ─────────────────────────────────────────────────────────────
-  priya-linux:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-
-      - name: Replace /usr/share/dotnet with a dangling symlink
-        run: |
-          sudo rm -rf /usr/share/dotnet
-          sudo ln -s /nonexistent-target-for-symlink-test /usr/share/dotnet
-          # parent made world-writable to prove the walk-up-to-parent branch is NOT taken
-          sudo chmod 777 /usr/share
-          ls -la /usr/share/dotnet
-
-      - name: Setup .NET (expect fallback to $HOME/.dotnet)
-        id: setup-dotnet
-        uses: v-priyagupta108/setup-dotnet@install-dir-writable-fallback
-        with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
-
-      - name: Verify fallback was used
-        if: always()
-        run: |
-          echo "DOTNET_ROOT=$DOTNET_ROOT"
-          if [ "$DOTNET_ROOT" != "$HOME/.dotnet" ]; then
-            echo "::error::expected fallback to $HOME/.dotnet but got '$DOTNET_ROOT'"
-            exit 1
-          fi
-          dotnet --info
-
-  priya-windows:
+  maha-windows-no-programfiles:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v7
-
-      - name: Replace C:\Program Files\dotnet with a dangling symlink
+      - uses: actions/checkout@v4
+      - name: Unset PROGRAMFILES
         shell: pwsh
-        run: |
-          Remove-Item -Recurse -Force "C:\Program Files\dotnet" -ErrorAction SilentlyContinue
-          New-Item -ItemType SymbolicLink -Path "C:\Program Files\dotnet" -Target "C:\nonexistent-target-for-symlink-test" | Out-Null
-
-      - name: Setup .NET (expect fallback to %USERPROFILE%\.dotnet)
-        id: setup-dotnet
-        uses: v-priyagupta108/setup-dotnet@install-dir-writable-fallback
+        run: echo "PROGRAMFILES=" | Out-File -FilePath $env:GITHUB_ENV -Append
+      - uses: v-mahabaleshwars/setup-dotnet@feature/518-fallback
         with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
-
-      - name: Verify fallback was used
+          dotnet-version: '8.0.x'
+      - name: Did it pollute the repo?
         if: always()
         shell: pwsh
         run: |
           Write-Host "DOTNET_ROOT=$env:DOTNET_ROOT"
-          $expected = Join-Path $env:USERPROFILE ".dotnet"
-          if ($env:DOTNET_ROOT -ne $expected) {
-            Write-Error "expected fallback to $expected but got '$env:DOTNET_ROOT'"
-            exit 1
-          }
-          dotnet --info
+          Write-Host "CWD contents:"
+          Get-ChildItem . | Select-Object Name
+          if (Test-Path ".\dotnet") { throw "SDK installed into the checked-out repo!" }
 
-  # ─────────────────────────────────────────────────────────────
-  # v-mahabaleshwars / feature/518-fallback
-  # ─────────────────────────────────────────────────────────────
-  maha-linux:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-
-      - name: Replace /usr/share/dotnet with a dangling symlink
-        run: |
-          sudo rm -rf /usr/share/dotnet
-          sudo ln -s /nonexistent-target-for-symlink-test /usr/share/dotnet
-          sudo chmod 777 /usr/share
-          ls -la /usr/share/dotnet
-
-      - name: Setup .NET (expect fallback to $HOME/.dotnet)
-        id: setup-dotnet
-        uses: v-mahabaleshwars/setup-dotnet@feature/518-fallback
-        with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
-
-      - name: Verify fallback was used
-        if: always()
-        run: |
-          echo "DOTNET_ROOT=$DOTNET_ROOT"
-          if [ "$DOTNET_ROOT" != "$HOME/.dotnet" ]; then
-            echo "::error::expected fallback to $HOME/.dotnet but got '$DOTNET_ROOT'"
-            exit 1
-          fi
-          dotnet --info
-
-  maha-windows:
+  priya-windows-no-programfiles:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v7
-
-      - name: Replace C:\Program Files\dotnet with a dangling symlink
+      - uses: actions/checkout@v4
+      - name: Unset PROGRAMFILES
         shell: pwsh
-        run: |
-          Remove-Item -Recurse -Force "C:\Program Files\dotnet" -ErrorAction SilentlyContinue
-          New-Item -ItemType SymbolicLink -Path "C:\Program Files\dotnet" -Target "C:\nonexistent-target-for-symlink-test" | Out-Null
-
-      - name: Setup .NET (expect fallback to %USERPROFILE%\.dotnet)
-        id: setup-dotnet
-        uses: v-mahabaleshwars/setup-dotnet@feature/518-fallback
+        run: echo "PROGRAMFILES=" | Out-File -FilePath $env:GITHUB_ENV -Append
+      - uses: v-priyagupta108/setup-dotnet@install-dir-writable-fallback
         with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
-
-      - name: Verify fallback was used
+          dotnet-version: '8.0.x'
+      - name: Did it pollute the repo?
         if: always()
         shell: pwsh
         run: |
           Write-Host "DOTNET_ROOT=$env:DOTNET_ROOT"
-          $expected = Join-Path $env:USERPROFILE ".dotnet"
-          if ($env:DOTNET_ROOT -ne $expected) {
-            Write-Error "expected fallback to $expected but got '$env:DOTNET_ROOT'"
-            exit 1
-          }
-          dotnet --info
+          if (Test-Path ".\dotnet") { throw "SDK installed into the checked-out repo!" }
