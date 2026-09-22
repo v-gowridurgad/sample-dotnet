@@ -2,38 +2,46 @@ name: testing-518
 on: workflow_dispatch
 
 jobs:
-  maha-windows-no-programfiles:
-    runs-on: windows-latest
+  maha:
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/dotnet/runtime-deps:8.0
+      options: --user 1001:1001
+    env:
+      HOME: /
     steps:
-      - uses: actions/checkout@v4
-      - name: Unset PROGRAMFILES
-        shell: pwsh
-        run: echo "PROGRAMFILES=" | Out-File -FilePath $env:GITHUB_ENV -Append
+      - name: Make the default unwritable
+        run: |
+          mkdir -p /usr/share/dotnet 2>/dev/null || true
+          chmod a-w /usr/share/dotnet 2>/dev/null || true
+          echo "HOME=$HOME"
+          node -e "console.log('homedir:', require('os').homedir())"
       - uses: v-mahabaleshwars/setup-dotnet@feature/518-fallback
         with:
           dotnet-version: '8.0.x'
-      - name: Did it pollute the repo?
+      - name: Where did it target?
         if: always()
-        shell: pwsh
         run: |
-          Write-Host "DOTNET_ROOT=$env:DOTNET_ROOT"
-          Write-Host "CWD contents:"
-          Get-ChildItem . | Select-Object Name
-          if (Test-Path ".\dotnet") { throw "SDK installed into the checked-out repo!" }
+          echo "DOTNET_ROOT=$DOTNET_ROOT"
+          ls -la /.dotnet 2>/dev/null && echo "TARGETED /.dotnet" || echo "did not target root"
 
-  priya-windows-no-programfiles:
-    runs-on: windows-latest
+  priya:
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/dotnet/runtime-deps:8.0
+      options: --user 1001:1001
+    env:
+      HOME: /
     steps:
-      - uses: actions/checkout@v4
-      - name: Unset PROGRAMFILES
-        shell: pwsh
-        run: echo "PROGRAMFILES=" | Out-File -FilePath $env:GITHUB_ENV -Append
+      - name: Make the default unwritable
+        run: |
+          mkdir -p /usr/share/dotnet 2>/dev/null || true
+          chmod a-w /usr/share/dotnet 2>/dev/null || true
       - uses: v-priyagupta108/setup-dotnet@install-dir-writable-fallback
         with:
           dotnet-version: '8.0.x'
-      - name: Did it pollute the repo?
+      - name: Where did it target?
         if: always()
-        shell: pwsh
         run: |
-          Write-Host "DOTNET_ROOT=$env:DOTNET_ROOT"
-          if (Test-Path ".\dotnet") { throw "SDK installed into the checked-out repo!" }
+          echo "DOTNET_ROOT=$DOTNET_ROOT"
+          ls -la /.dotnet 2>/dev/null && echo "TARGETED /.dotnet" || echo "did not target root"
