@@ -4,44 +4,36 @@ on: workflow_dispatch
 jobs:
   maha:
     runs-on: ubuntu-latest
-    container:
-      image: mcr.microsoft.com/dotnet/runtime-deps:8.0
-      options: --user 1001:1001
-    env:
-      HOME: /
     steps:
-      - name: Make the default unwritable
+      - name: Make default unwritable
         run: |
-          mkdir -p /usr/share/dotnet 2>/dev/null || true
-          chmod a-w /usr/share/dotnet 2>/dev/null || true
-          echo "HOME=$HOME"
-          node -e "console.log('homedir:', require('os').homedir())"
+          sudo mkdir -p /usr/share/dotnet
+          sudo chmod a-w /usr/share/dotnet
       - uses: v-mahabaleshwars/setup-dotnet@feature/518-fallback
+        env:
+          HOME: /
         with:
           dotnet-version: '8.0.x'
       - name: Where did it target?
         if: always()
         run: |
           echo "DOTNET_ROOT=$DOTNET_ROOT"
-          ls -la /.dotnet 2>/dev/null && echo "TARGETED /.dotnet" || echo "did not target root"
+          ls -la /.dotnet 2>/dev/null && echo "TARGETED /.dotnet" || echo "did not"
 
   priya:
     runs-on: ubuntu-latest
-    container:
-      image: mcr.microsoft.com/dotnet/runtime-deps:8.0
-      options: --user 1001:1001
-    env:
-      HOME: /
     steps:
-      - name: Make the default unwritable
+      - name: Make default unwritable
         run: |
-          mkdir -p /usr/share/dotnet 2>/dev/null || true
-          chmod a-w /usr/share/dotnet 2>/dev/null || true
+          sudo mkdir -p /usr/share/dotnet
+          sudo chmod a-w /usr/share/dotnet
       - uses: v-priyagupta108/setup-dotnet@install-dir-writable-fallback
+        env:
+          HOME: /
         with:
           dotnet-version: '8.0.x'
       - name: Where did it target?
         if: always()
         run: |
           echo "DOTNET_ROOT=$DOTNET_ROOT"
-          ls -la /.dotnet 2>/dev/null && echo "TARGETED /.dotnet" || echo "did not target root"
+          ls -la /.dotnet 2>/dev/null && echo "TARGETED /.dotnet" || echo "did not"
