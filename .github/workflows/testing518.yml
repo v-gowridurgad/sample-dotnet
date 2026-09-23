@@ -2,22 +2,21 @@ name: testing-518
 on: workflow_dispatch
 
 jobs:
-  maha:
+  check:
     runs-on: ubuntu-latest
     steps:
-      - name: Make default unwritable
+      - name: Restrict /usr/share/dotnet and probe it
         run: |
           sudo mkdir -p /usr/share/dotnet
           sudo chmod a-w /usr/share/dotnet
-      - uses: actions/setup-dotnet@v6
-        env:
-          HOME: /
-        with:
-          dotnet-version: '8.0.x'
-      - name: Where did it target?
-        if: always()
-        run: |
-          echo "DOTNET_ROOT=$DOTNET_ROOT"
-          ls -la /.dotnet 2>/dev/null && echo "TARGETED /.dotnet" || echo "did not"
-
-  
+          echo "--- permissions ---"
+          ls -ld /usr/share/dotnet
+          getfacl /usr/share/dotnet 2>/dev/null || echo "(no acl tooling)"
+          id
+          echo "--- probe (same as both PRs use) ---"
+          if mktemp -d /usr/share/dotnet/.probe-XXXXXX 2>&1; then
+            echo "RESULT: WRITABLE"
+          else
+            echo "RESULT: NOT WRITABLE"
+          fi
+          rm -rf /usr/share/dotnet/.probe-* 2>/dev/null || true
