@@ -1,23 +1,25 @@
-name: issue-518
+name: testing-518
 
 on: workflow_dispatch
 
 jobs:
-  main-v6:
+  priya:
     runs-on: ubuntu-latest
     steps:
       - name: Remove dotnet entirely, deny creation in parent
         run: |
           sudo rm -rf /usr/share/dotnet
           sudo chmod a-w /usr/share
-          echo "--- state ---"
+          echo "--- precondition ---"
           ls -ld /usr/share
           mkdir /usr/share/dotnet 2>&1 && echo "CAN CREATE" || echo "CANNOT CREATE"
 
-      - name: Setup .NET
+      - name: Setup .NET with an undeterminable home
         id: setup
         continue-on-error: true
-        uses: actions/setup-dotnet@v6
+        uses: v-priyagupta108/setup-dotnet@install-dir-writable-fallback
+        env:
+          HOME: /
         with:
           dotnet-version: '8.0.x'
 
@@ -26,7 +28,6 @@ jobs:
         run: |
           echo "outcome=${{ steps.setup.outcome }}"
           echo "DOTNET_ROOT=$DOTNET_ROOT"
-          which dotnet 2>/dev/null || echo "dotnet not on PATH"
 
       - name: Cleanup
         if: always()
@@ -39,14 +40,16 @@ jobs:
         run: |
           sudo rm -rf /usr/share/dotnet
           sudo chmod a-w /usr/share
-          echo "--- state ---"
+          echo "--- precondition ---"
           ls -ld /usr/share
           mkdir /usr/share/dotnet 2>&1 && echo "CAN CREATE" || echo "CANNOT CREATE"
 
-      - name: Setup .NET
+      - name: Setup .NET with an undeterminable home
         id: setup
         continue-on-error: true
         uses: v-mahabaleshwars/setup-dotnet@feature/518-fallback
+        env:
+          HOME: /
         with:
           dotnet-version: '8.0.x'
 
@@ -55,36 +58,6 @@ jobs:
         run: |
           echo "outcome=${{ steps.setup.outcome }}"
           echo "DOTNET_ROOT=$DOTNET_ROOT"
-          which dotnet 2>/dev/null || echo "dotnet not on PATH"
-
-      - name: Cleanup
-        if: always()
-        run: sudo chmod u+w /usr/share || true
-
-  priya:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Remove dotnet entirely, deny creation in parent
-        run: |
-          sudo rm -rf /usr/share/dotnet
-          sudo chmod a-w /usr/share
-          echo "--- state ---"
-          ls -ld /usr/share
-          mkdir /usr/share/dotnet 2>&1 && echo "CAN CREATE" || echo "CANNOT CREATE"
-
-      - name: Setup .NET
-        id: setup
-        continue-on-error: true
-        uses: v-priyagupta108/setup-dotnet@install-dir-writable-fallback
-        with:
-          dotnet-version: '8.0.x'
-
-      - name: Result
-        if: always()
-        run: |
-          echo "outcome=${{ steps.setup.outcome }}"
-          echo "DOTNET_ROOT=$DOTNET_ROOT"
-          which dotnet 2>/dev/null || echo "dotnet not on PATH"
 
       - name: Cleanup
         if: always()
