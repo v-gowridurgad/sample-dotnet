@@ -1,5 +1,7 @@
 name: testing-522
 on: workflow_dispatch
+env:
+  ACTIONS_STEP_DEBUG: true
 
 jobs:
   check:
