@@ -12,6 +12,6 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v6
+      - uses: v-gowridurgad/setup-dotnet@feature-522
         with:
           dotnet-version: '8.0.x'
