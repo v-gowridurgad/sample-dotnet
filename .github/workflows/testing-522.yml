@@ -1,7 +1,5 @@
 name: testing-522
 on: workflow_dispatch
-env:
-  ACTIONS_STEP_DEBUG: true
 
 jobs:
   check:
@@ -12,6 +10,7 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
     steps:
       - uses: actions/checkout@v4
-      - uses: v-gowridurgad/setup-dotnet@feature-522
+      - uses: matherm-aboehm/setup-dotnet@verbose
         with:
           dotnet-version: '8.0.x'
+          verbose: true
